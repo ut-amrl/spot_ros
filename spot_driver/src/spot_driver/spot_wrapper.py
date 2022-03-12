@@ -460,7 +460,8 @@ class SpotWrapper():
 
     def getLease(self):
         """Get a lease for the robot and keep the lease alive automatically."""
-        self._lease = self._lease_client.acquire()
+        # self._lease = self._lease_client.acquire()
+        self._lease = self._lease_client.take()
         self._lease_keepalive = LeaseKeepAlive(self._lease_client)
 
     def releaseLease(self):
