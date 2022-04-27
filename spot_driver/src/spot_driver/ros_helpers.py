@@ -5,6 +5,7 @@ from tf2_msgs.msg import TFMessage
 from geometry_msgs.msg import TransformStamped
 from sensor_msgs.msg import Image, CameraInfo
 from sensor_msgs.msg import JointState
+from geometry_msgs.msg import Point
 from geometry_msgs.msg import PoseWithCovariance
 from geometry_msgs.msg import TwistWithCovariance
 from geometry_msgs.msg import TwistWithCovarianceStamped
@@ -229,6 +230,10 @@ def GetFeetFromState(state, spot_wrapper):
     Returns:
         FootStateArray message
     """
+    def _Vec3_to_Point(v):
+        """Copies the contents of a Vec3 Protobuf message into a geometry_msgs/Point message"""
+        return Point(v.x, v.y, v.z)
+
     foot_array_msg = FootStateArray()
     for foot in state.foot_state:
         foot_msg = FootState()
@@ -236,6 +241,16 @@ def GetFeetFromState(state, spot_wrapper):
         foot_msg.foot_position_rt_body.y = foot.foot_position_rt_body.y
         foot_msg.foot_position_rt_body.z = foot.foot_position_rt_body.z
         foot_msg.contact = foot.contact
+
+        terrain = foot.terrain
+        foot_msg.ground_mu_est = terrain.ground_mu_est
+        foot_msg.frame_name = terrain.frame_name
+        foot_msg.foot_slip_distance_rt_frame = _Vec3_to_Point(terrain.foot_slip_distance_rt_frame)
+        foot_msg.foot_slip_velocity_rt_frame = _Vec3_to_Point(terrain.foot_slip_velocity_rt_frame)
+        foot_msg.ground_contact_normal_rt_frame = _Vec3_to_Point(terrain.ground_contact_normal_rt_frame)
+        foot_msg.visual_surface_ground_penetration_mean = terrain.visual_surface_ground_penetration_mean
+        foot_msg.visual_surface_ground_penetration_std = terrain.visual_surface_ground_penetration_std
+
         foot_array_msg.states.append(foot_msg)
 
     return foot_array_msg
