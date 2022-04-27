@@ -235,6 +235,8 @@ def GetFeetFromState(state, spot_wrapper):
         return Point(v.x, v.y, v.z)
 
     foot_array_msg = FootStateArray()
+    local_time = spot_wrapper.robotToLocalTime(state.kinematic_state.acquisition_timestamp)
+    foot_array_msg.header.stamp = rospy.Time(local_time.seconds, local_time.nanos)
     for foot in state.foot_state:
         foot_msg = FootState()
         foot_msg.foot_position_rt_body.x = foot.foot_position_rt_body.x
