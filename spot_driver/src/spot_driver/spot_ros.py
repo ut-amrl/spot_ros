@@ -578,6 +578,7 @@ class SpotROS():
         self.password = rospy.get_param('~password', 'default_value')
         self.hostname = rospy.get_param('~hostname', 'default_value')
         self.motion_deadzone = rospy.get_param('~deadzone', 0.05)
+        self.ignore_ground_height = rospy.get_param("~ignore_ground_height", False)
 
         self.camera_static_transform_broadcaster = tf2_ros.StaticTransformBroadcaster()
         # Static transform broadcaster is super simple and just a latched publisher. Every time we add a new static
@@ -604,6 +605,18 @@ class SpotROS():
         rospy.logwarn("Getting spot wrapper...")
         self.spot_wrapper = SpotWrapper(self.username, self.password, self.hostname, self.logger, self.rates, self.callbacks)
         rospy.logwarn("Acquired spot wrapper.")
+
+
+        # TODO(eyang): Verify these settings on the robot before merging.
+        # TODO(eyang): These fields should turn off the robot's response to
+        #              ground height, but do they also turn off ground height
+        #              detection?
+        # TODO(eyang): Should these fields be added to the ROS message as well?
+        if self.ignore_ground_height:
+            mobility_params = self.spot_wrapper.get_mobility_params()
+            mobility_params.obstacle_params.disable_vision_foot_obstacle_avoidance = True
+            mobility_params.obstacle_params.disable_vision_foot_obstacle_body_assist = True
+
         if self.spot_wrapper.is_valid:
             self.setupPubSub()
             rospy.on_shutdown(self.shutdown)
