@@ -484,17 +484,28 @@ class SpotROS():
 
     def shutdown(self):
         rospy.loginfo("Shutting down ROS driver for Spot")
+
+        # If the user requests a shutdown using "rosnode kill", the
+        # safe_power_off command will not sit the robot down. Perform a
+        # redundant sit to handle this edge case.
+        self.spot_wrapper.sit()
+
+        rospy.logwarn("Requesting safe power off...")
         success, msg = self.spot_wrapper.safe_power_off()
         if not success:
             rospy.logerr(f"Unable to perform safe power off: {msg}")
+        else:
+            # Wait for the robot to fully sit down, power off its motors, and
+            # register that its motors are powered off.
+            time.sleep(6.0)
+            rospy.logwarn("Safely powered off the robot.")
+
+        rospy.logwarn("Releasing Spot Lease and E-Stop authority...")
         success, msg = self.spot_wrapper.release()
         if not success:
-            rospy.logger(f"Unable to release SpotWrapper: {msg}")
-        # TODO: This sleep might not be necessary anymore. safe_power_off (which needs to be
-        # updated to safe_power_off_motors) should block until completion.
-        time.sleep(0.5)
-        # TODO: Why are we immediately exiting? Isn't this method part of a graceful shutdown?
-        os._exit(1)
+            rospy.logerr(f"Unable to release Spot Lease and E-Stop authority: {msg}")
+
+        rospy.logwarn("Released Spot Lease and E-Stop authority.")
 
     def setupPubSub(self):
         # Images #
