@@ -484,8 +484,16 @@ class SpotROS():
 
     def shutdown(self):
         rospy.loginfo("Shutting down ROS driver for Spot")
-        self.spot_wrapper.sit()
+        success, msg = self.spot_wrapper.safe_power_off()
+        if not success:
+            rospy.logerr(f"Unable to perform safe power off: {msg}")
+        success, msg = self.spot_wrapper.release()
+        if not success:
+            rospy.logger(f"Unable to release SpotWrapper: {msg}")
+        # TODO: This sleep might not be necessary anymore. safe_power_off (which needs to be
+        # updated to safe_power_off_motors) should block until completion.
         time.sleep(0.5)
+        # TODO: Why are we immediately exiting? Isn't this method part of a graceful shutdown?
         os._exit(1)
 
     def setupPubSub(self):
