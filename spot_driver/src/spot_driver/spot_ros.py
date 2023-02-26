@@ -636,12 +636,12 @@ class SpotROS():
                     success, msg = self.spot_wrapper.claim()
                     if not success:
                         rospy.logerr('Unable to claim spot: ' + msg)
-                        os._exit(1)
+                        rospy.signal_shutdown("Unable to claim spot: graceful shutdown")
                     if self.auto_power_on:
                         success, msg = self.spot_wrapper.power_on()
                         if not success:
                             rospy.logerr('Unable to power on: ' + msg)
-                            os._exit(1)
+                            rospy.signal_shutdown("Unable to power on: graceful shutdown")
                         if self.auto_stand:
                             self.spot_wrapper.stand()
             except Exception as e:
