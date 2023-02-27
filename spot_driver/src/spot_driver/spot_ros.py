@@ -484,9 +484,28 @@ class SpotROS():
 
     def shutdown(self):
         rospy.loginfo("Shutting down ROS driver for Spot")
+
+        # If the user requests a shutdown using "rosnode kill", the
+        # safe_power_off command will not sit the robot down. Perform a
+        # redundant sit to handle this edge case.
         self.spot_wrapper.sit()
-        time.sleep(0.5)
-        os._exit(1)
+
+        rospy.logwarn("Requesting safe power off...")
+        success, msg = self.spot_wrapper.safe_power_off()
+        if not success:
+            rospy.logerr(f"Unable to perform safe power off: {msg}")
+        else:
+            # Wait for the robot to fully sit down, power off its motors, and
+            # register that its motors are powered off.
+            time.sleep(6.0)
+            rospy.logwarn("Safely powered off the robot.")
+
+        rospy.logwarn("Releasing Spot Lease and E-Stop authority...")
+        success, msg = self.spot_wrapper.release()
+        if not success:
+            rospy.logerr(f"Unable to release Spot Lease and E-Stop authority: {msg}")
+
+        rospy.logwarn("Released Spot Lease and E-Stop authority.")
 
     def setupPubSub(self):
         # Images #
@@ -617,12 +636,12 @@ class SpotROS():
                     success, msg = self.spot_wrapper.claim()
                     if not success:
                         rospy.logerr('Unable to claim spot: ' + msg)
-                        os._exit(1)
+                        rospy.signal_shutdown("Unable to claim spot: graceful shutdown")
                     if self.auto_power_on:
                         success, msg = self.spot_wrapper.power_on()
                         if not success:
                             rospy.logerr('Unable to power on: ' + msg)
-                            os._exit(1)
+                            rospy.signal_shutdown("Unable to power on: graceful shutdown")
                         if self.auto_stand:
                             self.spot_wrapper.stand()
             except Exception as e:
