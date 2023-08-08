@@ -13,7 +13,7 @@ if(rviz_QT_VERSION VERSION_LESS "5")
   include(${QT_USE_FILE})
 else()
   message(STATUS "Using Qt5 based on the rviz_QT_VERSION: ${rviz_QT_VERSION}")
-  find_package(Qt5 ${rviz_QT_VERSION} EXACT REQUIRED Core Widgets UiTools)
+  find_package(Qt5 ${rviz_QT_VERSION} REQUIRED Core Widgets UiTools)
   set(QT_LIBRARIES Qt5::Widgets Qt5::UiTools)
 endif()
 

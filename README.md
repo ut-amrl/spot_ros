@@ -67,3 +67,53 @@ catkin_make --cmake-args -DCMAKE_BUILD_TYPE=Release -DPYTHON_EXECUTABLE=/usr/bin
 4. re-run `source devel/setup.bash`
 
 5. start the driver with `roslaunch spot_driver driver.launch`
+
+# For those who are sick of docker and just want to use the native system
+1. create a ROS workspace with following structure, and then clone this repo under `src/`
+```tree
+Your ROS workspace name
+├── src
+│   ├── spot_ros
+```
+2. checkout branch `ros_no_docker`
+```shell
+cd {workspace_name}/src/spot_ros
+git checkout ros_no_docker
+```
+3. go to website: https://robostack.github.io/GettingStarted.html and follow the steps to create your appropriate conda environment. Below are the code snippets
+```shell
+conda install mamba -c conda-forge
+mamba create -n ros_env
+mamba activate ros_env
+
+# this adds the conda-forge channel to the new created environment configuration 
+conda config --env --add channels conda-forge
+# and the robostack channel
+conda config --env --add channels robostack-staging
+# remove the defaults channel just in case, this might return an error if it is not in the list which is ok
+conda config --env --remove channels defaults
+```
+
+4. install ROS environment
+```shell
+# Install ros-noetic into the environment (ROS1)
+mamba install ros-noetic-desktop
+mamba install ros-noetic-joy	
+mamba install ros-noetic-interactive-marker-twist-server
+mamba install ros-noetic-teleop-twist-joy
+mamba install ros-noetic-twist-mux
+```
+
+5. go back to the root of the your workspace and then `catkin_make`
+```shell
+catkin_make
+```
+
+6. source your devel
+```shell
+source devel/setup.bash
+```
+
+7. to test if this works, fill in the correct username and password under `launch/driver.launch` and finally run `roslaunch spot_ros driver.launch`
+
+You should be able to see the spot showing a green light and standing up. If you still encounter problem, don't hesitate to contact Zichao on Slack.
