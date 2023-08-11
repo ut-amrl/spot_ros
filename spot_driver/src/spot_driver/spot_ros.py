@@ -19,6 +19,7 @@ import actionlib
 import functools
 import bosdyn.geometry
 import tf2_ros
+from google.protobuf.wrappers_pb2 import DoubleValue
 
 from spot_msgs.msg import Metrics
 from spot_msgs.msg import LeaseArray, LeaseResource
@@ -50,6 +51,7 @@ class SpotROS():
 
     def __init__(self):
         self.spot_wrapper = None
+        self._backup_mobility_params = None
 
         self.callbacks = {}
         """Dictionary listing what callback to use for what data task"""
@@ -265,6 +267,56 @@ class SpotROS():
         """ROS service handler for the stand service"""
         resp = self.spot_wrapper.stand()
         return TriggerResponse(resp[0], resp[1])
+
+    def handle_vis_off(self, req):
+        """
+        -----------------------------------------------------------------------
+        ##### TABLET Mapping:
+        - Obstacle Avoidance :: 
+        - Obstacle Avoidance Cushion :: obstacle_avoidance_padding
+        - Walk on Stairs :: stairs_mode
+        - Walk on Grated Floor :: grated_surfaces_mode
+        - Descend Stairs before Power Off :: disable_stair_error_auto_descent
+        - Ground Height Detection :: 
+        - Stair/Surface Edge Avoidance :: disable_vision_foot_constraint_avoidance
+        - Avoid Negative Obstacles :: disable_vision_negative_obstacles
+        - Autowalk avoid ground clutter :: In TravelParams, but not used!
+        -----------------------------------------------------------------------
+        """
+        if self._backup_mobility_params is None:
+            self._backup_mobility_params = self.spot_wrapper.get_mobility_params()
+        try:
+            mobility_params = self.spot_wrapper.get_mobility_params()
+            mobility_params.stairs_mode = 1
+            mobility_params.allow_degraded_perception = True
+            mobility_params.disable_stair_error_auto_descent = True
+            mobility_params.disallow_non_stairs_pitch_limiting = True
+            mobility_params.disable_nearmap_cliff_avoidance = True
+
+            obstacle_params = spot_command_pb2.ObstacleParams()
+            obstacle_params.disable_vision_foot_obstacle_avoidance = True
+            obstacle_params.disable_vision_foot_constraint_avoidance = True
+            obstacle_params.disable_vision_body_obstacle_avoidance = True
+            obstacle_params.disable_vision_foot_obstacle_body_assist = True
+            obstacle_params.disable_vision_negative_obstacles = True
+            terrain_params = spot_command_pb2.TerrainParams(ground_mu_hint=DoubleValue(value=0.4))
+            terrain_params.grated_surfaces_mode = 1
+
+            mobility_params.obstacle_params.CopyFrom(obstacle_params)
+            mobility_params.terrain_params.CopyFrom(terrain_params)
+            self.spot_wrapper.set_mobility_params(mobility_params)
+            return TriggerResponse(True, "Turned vis off!")
+        else:
+            return TriggerResponse(False, "MYERROR: Couldnt turn vis off!")
+
+    def handle_vis_on(self, req):
+        try:
+            mobility_params = self.spot_wrapper.get_mobility_params()
+            mobility_params.CopyFrom(self._backup_mobility_params)
+            self.spot_wrapper.set_mobility_params(mobility_params)
+            return TriggerResponse(True, "Turned vis on!")
+        else:
+            return TriggerResponse(False, "MYERROR: Couldnt turn vis on!")
 
     def handle_power_on(self, req):
         """ROS service handler for the power-on service"""
@@ -563,6 +615,8 @@ class SpotROS():
         rospy.Service("self_right", Trigger, self.handle_self_right)
         rospy.Service("sit", Trigger, self.handle_sit)
         rospy.Service("stand", Trigger, self.handle_stand)
+        rospy.Service("vis_on", Trigger, self.handle_vis_on)
+        rospy.Service("vis_off", Trigger, self.handle_vis_off)
         rospy.Service("power_on", Trigger, self.handle_power_on)
         rospy.Service("power_off", Trigger, self.handle_safe_power_off)
 
