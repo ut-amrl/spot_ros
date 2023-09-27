@@ -51,7 +51,6 @@ class SpotROS():
 
     def __init__(self):
         self.spot_wrapper = None
-        self._backup_mobility_params = None
 
         self.callbacks = {}
         """Dictionary listing what callback to use for what data task"""
@@ -283,8 +282,6 @@ class SpotROS():
         - Autowalk avoid ground clutter :: In TravelParams, but not used!
         -----------------------------------------------------------------------
         """
-        if self._backup_mobility_params is None:
-            self._backup_mobility_params = self.spot_wrapper.get_mobility_params()
         try:
             mobility_params = self.spot_wrapper.get_mobility_params()
             mobility_params.stairs_mode = 1
@@ -299,23 +296,39 @@ class SpotROS():
             obstacle_params.disable_vision_body_obstacle_avoidance = True
             obstacle_params.disable_vision_foot_obstacle_body_assist = True
             obstacle_params.disable_vision_negative_obstacles = True
-            terrain_params = spot_command_pb2.TerrainParams(ground_mu_hint=DoubleValue(value=0.4))
+            terrain_params = spot_command_pb2.TerrainParams(ground_mu_hint=DoubleValue(value=0.6))
             terrain_params.grated_surfaces_mode = 1
 
             mobility_params.obstacle_params.CopyFrom(obstacle_params)
             mobility_params.terrain_params.CopyFrom(terrain_params)
             self.spot_wrapper.set_mobility_params(mobility_params)
             return TriggerResponse(True, "Turned vis off!")
-        else:
+        except:
             return TriggerResponse(False, "MYERROR: Couldnt turn vis off!")
 
     def handle_vis_on(self, req):
         try:
             mobility_params = self.spot_wrapper.get_mobility_params()
-            mobility_params.CopyFrom(self._backup_mobility_params)
+            mobility_params.stairs_mode = 3
+            mobility_params.allow_degraded_perception = False
+            mobility_params.disable_stair_error_auto_descent = False
+            mobility_params.disallow_non_stairs_pitch_limiting = False
+            mobility_params.disable_nearmap_cliff_avoidance = False
+
+            obstacle_params = spot_command_pb2.ObstacleParams()
+            obstacle_params.disable_vision_foot_obstacle_avoidance = False
+            obstacle_params.disable_vision_foot_constraint_avoidance = False
+            obstacle_params.disable_vision_body_obstacle_avoidance = False
+            obstacle_params.disable_vision_foot_obstacle_body_assist = False
+            obstacle_params.disable_vision_negative_obstacles = False
+            terrain_params = spot_command_pb2.TerrainParams(ground_mu_hint=DoubleValue(value=0.6))
+            terrain_params.grated_surfaces_mode = 3
+
+            mobility_params.obstacle_params.CopyFrom(obstacle_params)
+            mobility_params.terrain_params.CopyFrom(terrain_params)
             self.spot_wrapper.set_mobility_params(mobility_params)
             return TriggerResponse(True, "Turned vis on!")
-        else:
+        except:
             return TriggerResponse(False, "MYERROR: Couldnt turn vis on!")
 
     def handle_power_on(self, req):
