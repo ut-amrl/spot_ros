@@ -284,11 +284,6 @@ class SpotROS():
         """
         try:
             mobility_params = self.spot_wrapper.get_mobility_params()
-            mobility_params.stairs_mode = 1
-            mobility_params.allow_degraded_perception = True
-            mobility_params.disable_stair_error_auto_descent = True
-            mobility_params.disallow_non_stairs_pitch_limiting = True
-            mobility_params.disable_nearmap_cliff_avoidance = True
 
             obstacle_params = spot_command_pb2.ObstacleParams()
             obstacle_params.disable_vision_foot_obstacle_avoidance = True
@@ -309,11 +304,6 @@ class SpotROS():
     def handle_vis_on(self, req):
         try:
             mobility_params = self.spot_wrapper.get_mobility_params()
-            mobility_params.stairs_mode = 3
-            mobility_params.allow_degraded_perception = False
-            mobility_params.disable_stair_error_auto_descent = False
-            mobility_params.disallow_non_stairs_pitch_limiting = False
-            mobility_params.disable_nearmap_cliff_avoidance = False
 
             obstacle_params = spot_command_pb2.ObstacleParams()
             obstacle_params.disable_vision_foot_obstacle_avoidance = False
