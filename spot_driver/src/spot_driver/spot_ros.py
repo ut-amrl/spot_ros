@@ -23,7 +23,6 @@ import tf2_ros
 from spot_msgs.msg import Metrics
 from spot_msgs.msg import LeaseArray, LeaseResource
 from spot_msgs.msg import FootState, FootStateArray
-from spot_msgs.msg import EStopState, EStopStateArray
 from spot_msgs.msg import WiFiState
 from spot_msgs.msg import PowerState
 from spot_msgs.msg import BehaviorFault, BehaviorFaultState
@@ -94,7 +93,17 @@ class SpotROS():
             self.feet_pub.publish(foot_array_msg)
 
             # EStop #
-            estop_array_msg = GetEStopStateFromState(state, self.spot_wrapper)
+            # TODO: derer to robot state
+            estop_array_msg = EStopStateArray()
+            for estop in state.estop_states:
+                estop_msg = EStopState()
+                local_time = self.spot_wrapper.robotToLocalTime(estop.timestamp)
+                estop_msg.header.stamp = rospy.Time(local_time.seconds, local_time.nanos)
+                estop_msg.name = estop.name
+                estop_msg.type = estop.type
+                estop_msg.state = estop.state
+                estop_msg.state_description = estop.state_description
+                estop_array_msg.estop_states.append(estop_msg)
             self.estop_pub.publish(estop_array_msg)
 
             # WIFI #
@@ -274,22 +283,6 @@ class SpotROS():
     def handle_safe_power_off(self, req):
         """ROS service handler for the safe-power-off service"""
         resp = self.spot_wrapper.safe_power_off()
-        return TriggerResponse(resp[0], resp[1])
-
-    def handle_estop_hard(self, req):
-        """ROS service handler to hard-eStop the robot.  The robot will immediately cut power to the motors"""
-        resp = self.spot_wrapper.assertEStop(True)
-        return TriggerResponse(resp[0], resp[1])
-
-    def handle_estop_soft(self, req):
-        """ROS service handler to soft-eStop the robot.  The robot will try to settle on the ground before cutting
-        power to the motors """
-        resp = self.spot_wrapper.assertEStop(False)
-        return TriggerResponse(resp[0], resp[1])
-
-    def handle_estop_disengage(self, req):
-        """ROS service handler to disengage the eStop on the robot."""
-        resp = self.spot_wrapper.disengageEStop()
         return TriggerResponse(resp[0], resp[1])
 
     def handle_clear_behavior_fault(self, req):
@@ -543,7 +536,6 @@ class SpotROS():
         self.odom_twist_pub = rospy.Publisher('odometry/twist', TwistWithCovarianceStamped, queue_size=10)
         self.odom_pub = rospy.Publisher('odometry', Odometry, queue_size=10)
         self.feet_pub = rospy.Publisher('status/feet', FootStateArray, queue_size=10)
-        self.estop_pub = rospy.Publisher('status/estop', EStopStateArray, queue_size=10)
         self.wifi_pub = rospy.Publisher('status/wifi', WiFiState, queue_size=10)
         self.power_pub = rospy.Publisher('status/power_state', PowerState, queue_size=10)
         self.battery_pub = rospy.Publisher('status/battery_states', BatteryStateArray, queue_size=10)
@@ -565,10 +557,6 @@ class SpotROS():
         rospy.Service("stand", Trigger, self.handle_stand)
         rospy.Service("power_on", Trigger, self.handle_power_on)
         rospy.Service("power_off", Trigger, self.handle_safe_power_off)
-
-        rospy.Service("estop/hard", Trigger, self.handle_estop_hard)
-        rospy.Service("estop/gentle", Trigger, self.handle_estop_soft)
-        rospy.Service("estop/release", Trigger, self.handle_estop_disengage)
 
         rospy.Service("stair_mode", SetBool, self.handle_stair_mode)
         rospy.Service("locomotion_mode", SetLocomotion, self.handle_locomotion_mode)

@@ -16,7 +16,6 @@ from bosdyn.api import image_pb2
 from bosdyn.api.graph_nav import graph_nav_pb2
 from bosdyn.api.graph_nav import map_pb2
 from bosdyn.api.graph_nav import nav_pb2
-from bosdyn.client.estop import EstopClient, EstopEndpoint, EstopKeepAlive
 from bosdyn.client import power
 from bosdyn.client import frame_helpers
 from bosdyn.client import math_helpers
@@ -267,7 +266,6 @@ class SpotWrapper():
                 self._lease_client = self._robot.ensure_client(LeaseClient.default_service_name)
                 self._lease_wallet = self._lease_client.lease_wallet
                 self._image_client = self._robot.ensure_client(ImageClient.default_service_name)
-                self._estop_client = self._robot.ensure_client(EstopClient.default_service_name)
             except Exception as e:
                 self._logger.error("Unable to create client service: %s", e)
                 self._valid = False
@@ -289,8 +287,6 @@ class SpotWrapper():
             self._side_image_task = AsyncImageService(self._image_client, self._logger, max(0.0, self._rates.get("side_image", 0.0)), self._callbacks.get("side_image", lambda:None), self._side_image_requests)
             self._rear_image_task = AsyncImageService(self._image_client, self._logger, max(0.0, self._rates.get("rear_image", 0.0)), self._callbacks.get("rear_image", lambda:None), self._rear_image_requests)
             self._idle_task = AsyncIdle(self._robot_command_client, self._logger, 10.0, self)
-
-            self._estop_endpoint = None
 
             self._async_tasks = AsyncTasks(
                 [self._robot_state_task, self._robot_metrics_task, self._lease_task, self._front_image_task, self._side_image_task, self._rear_image_task, self._idle_task])
@@ -407,7 +403,11 @@ class SpotWrapper():
         try:
             self._robot_id = self._robot.get_id()
             self.getLease()
-            self.resetEStop()
+            # TODO: defer to lease claim
+            self._estop_endpoint = EstopEndpoint(self._estop_client, 'ros', 9.0)
+            self._estop_endpoint.force_simple_setup()  # Set this endpoint as the robot's sole estop.
+            self._estop_keepalive = EstopKeepAlive(self._estop_endpoint)
+            
             return True, "Success"
         except (ResponseError, RpcError) as err:
             self._logger.error("Failed to initialize robot communication: %s", err)
@@ -419,44 +419,6 @@ class SpotWrapper():
             self._async_tasks.update()
         except Exception as e:
             print(f"Update tasks failed with error: {str(e)}")
-
-    def resetEStop(self):
-        """Get keepalive for eStop"""
-        self._estop_endpoint = EstopEndpoint(self._estop_client, 'ros', 9.0)
-        self._estop_endpoint.force_simple_setup()  # Set this endpoint as the robot's sole estop.
-        self._estop_keepalive = EstopKeepAlive(self._estop_endpoint)
-
-    def assertEStop(self, severe=True):
-        """Forces the robot into eStop state.
-
-        Args:
-            severe: Default True - If true, will cut motor power immediately.  If false, will try to settle the robot on the ground first
-        """
-        try:
-            if severe:
-                self._estop_keepalive.stop()
-            else:
-                self._estop_keepalive.settle_then_cut()
-
-            return True, "Success"
-        except:
-            return False, "Error"
-
-    def disengageEStop(self):
-        """Disengages the E-Stop"""
-        try:
-            self._estop_keepalive.allow()
-            return True, "Success"
-        except:
-            return False, "Error"
-
-
-    def releaseEStop(self):
-        """Stop eStop keepalive"""
-        if self._estop_keepalive:
-            self._estop_keepalive.stop()
-            self._estop_keepalive = None
-            self._estop_endpoint = None
 
     def getLease(self):
         """Get a lease for the robot and keep the lease alive automatically."""
@@ -474,17 +436,14 @@ class SpotWrapper():
         """Return the lease on the body and the eStop handle."""
         try:
             self.releaseLease()
-            self.releaseEStop()
+            # TODO: defer to lease release
+            if self._estop_keepalive:
+                self._estop_keepalive.stop()
+                self._estop_keepalive = None
+                self._estop_endpoint = None
             return True, "Success"
         except Exception as e:
             return False, str(e)
-
-    def disconnect(self):
-        """Release control of robot as gracefully as posssible."""
-        if self._robot.time_sync:
-            self._robot.time_sync.stop()
-        self.releaseLease()
-        self.releaseEStop()
 
     def _robot_command(self, command_proto, end_time_secs=None, timesync_endpoint=None):
         """Generic blocking function for sending commands to robots.

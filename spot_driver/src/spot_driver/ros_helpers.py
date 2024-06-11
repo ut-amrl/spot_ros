@@ -13,7 +13,6 @@ from nav_msgs.msg import Odometry
 from spot_msgs.msg import Metrics
 from spot_msgs.msg import LeaseArray, LeaseResource
 from spot_msgs.msg import FootState, FootStateArray
-from spot_msgs.msg import EStopState, EStopStateArray
 from spot_msgs.msg import WiFiState
 from spot_msgs.msg import PowerState
 from spot_msgs.msg import BehaviorFault, BehaviorFaultState
@@ -197,28 +196,6 @@ def GetJointStatesFromState(state, spot_wrapper):
         joint_state.effort.append(joint.load.value)
 
     return joint_state
-
-def GetEStopStateFromState(state, spot_wrapper):
-    """Maps eStop state data from robot state proto to ROS EStopArray message
-
-    Args:
-        data: Robot State proto
-        spot_wrapper: A SpotWrapper object
-    Returns:
-        EStopArray message
-    """
-    estop_array_msg = EStopStateArray()
-    for estop in state.estop_states:
-        estop_msg = EStopState()
-        local_time = spot_wrapper.robotToLocalTime(estop.timestamp)
-        estop_msg.header.stamp = rospy.Time(local_time.seconds, local_time.nanos)
-        estop_msg.name = estop.name
-        estop_msg.type = estop.type
-        estop_msg.state = estop.state
-        estop_msg.state_description = estop.state_description
-        estop_array_msg.estop_states.append(estop_msg)
-
-    return estop_array_msg
 
 def GetFeetFromState(state, spot_wrapper):
     """Maps foot position state data from robot state proto to ROS FootStateArray message
