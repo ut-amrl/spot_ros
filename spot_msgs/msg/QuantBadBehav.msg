@@ -1,5 +1,5 @@
 string log
-std_msgs/Header header
+Header header
 
 # level 1: at the interface of NAV and spot-ros
 geometry_msgs/Twist cmd_vel
@@ -12,3 +12,4 @@ bool res_bool
 string res_str
 
 # level 3: (feeback from env) contact & normal from ground 
+spot_msgs/FootStateArray foot_state_array

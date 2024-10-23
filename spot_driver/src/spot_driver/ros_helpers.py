@@ -230,12 +230,24 @@ def GetFeetFromState(state, spot_wrapper):
         FootStateArray message
     """
     foot_array_msg = FootStateArray()
+    local_time = spot_wrapper.robotToLocalTime(state.kinematic_state.acquisition_timestamp)
+    foot_array_msg.header.stamp = rospy.Time(local_time.seconds, local_time.nanos)
     for foot in state.foot_state:
         foot_msg = FootState()
         foot_msg.foot_position_rt_body.x = foot.foot_position_rt_body.x
         foot_msg.foot_position_rt_body.y = foot.foot_position_rt_body.y
         foot_msg.foot_position_rt_body.z = foot.foot_position_rt_body.z
         foot_msg.contact = foot.contact
+
+        terrain = foot.terrain
+        foot_msg.ground_mu_est = terrain.ground_mu_est
+        foot_msg.frame_name = terrain.frame_name
+        foot_msg.foot_slip_distance_rt_frame = terrain.foot_slip_distance_rt_frame
+        foot_msg.foot_slip_velocity_rt_frame = terrain.foot_slip_velocity_rt_frame
+        foot_msg.ground_contact_normal_rt_frame = terrain.ground_contact_normal_rt_frame
+        foot_msg.visual_surface_ground_penetration_mean = terrain.visual_surface_ground_penetration_mean
+        foot_msg.visual_surface_ground_penetration_std = terrain.visual_surface_ground_penetration_std
+
         foot_array_msg.states.append(foot_msg)
 
     return foot_array_msg

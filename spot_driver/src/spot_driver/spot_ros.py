@@ -94,6 +94,10 @@ class SpotROS():
             # Feet #
             foot_array_msg = GetFeetFromState(state, self.spot_wrapper)
             self.feet_pub.publish(foot_array_msg)
+            msg = QuantBadBehav()
+            msg.log = self.get_sys_ros_time_str()
+            msg.foot_state_array = foot_array_msg
+            self.quant_bad_behav_pub.publish(msg)
 
             # EStop #
             estop_array_msg = GetEStopStateFromState(state, self.spot_wrapper)
