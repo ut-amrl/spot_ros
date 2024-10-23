@@ -19,6 +19,7 @@ import actionlib
 import functools
 import bosdyn.geometry
 import tf2_ros
+from google.protobuf.json_format import MessageToJson
 
 from spot_msgs.msg import Metrics
 from spot_msgs.msg import LeaseArray, LeaseResource
@@ -33,6 +34,7 @@ from spot_msgs.msg import Feedback
 from spot_msgs.msg import MobilityParams
 from spot_msgs.msg import NavigateToAction, NavigateToResult, NavigateToFeedback
 from spot_msgs.msg import TrajectoryAction, TrajectoryResult, TrajectoryFeedback
+from spot_msgs.msg import QuantBadBehav
 from spot_msgs.srv import ListGraph, ListGraphResponse
 from spot_msgs.srv import SetLocomotion, SetLocomotionResponse
 from spot_msgs.srv import ClearBehaviorFault, ClearBehaviorFaultResponse
@@ -398,12 +400,33 @@ class SpotROS():
                 self.trajectory_server.publish_feedback(TrajectoryFeedback("Failed to reach goal"))
                 self.trajectory_server.set_aborted(TrajectoryResult(False, "Failed to reach goal"))
 
+    @staticmethod
+    def get_sys_ros_time_str():
+        """
+        returns a str for the current sys wall time and the corresponding ROS time in nanosecs
+        """
+        sys_time = int(time.time() * 1e9)
+        ros_time = int(rospy.Time.now().to_nsec())
+        return f"System Time(ns)={sys_time}, ROS Time(ns)={ros_time}"
+
     def cmdVelCallback(self, data):
         """Callback for cmd_vel command"""
-        self.spot_wrapper.velocity_cmd(data.linear.x, data.linear.y, data.angular.z)
+        inargs, outresp = self.spot_wrapper.velocity_cmd(data.linear.x, data.linear.y, data.angular.z, cmd_duration=self.cmd_dt, ldos=True)
+        command_proto, end_time, tendpt = inargs
+        command_proto_json = MessageToJson(command_proto)
+        res_bool, res_str = outresp[0], outresp[1]
+
+        msg = QuantBadBehav()
+        msg.log = self.get_sys_ros_time_str()
+        msg.cmd_vel = data
+        msg.command_proto = command_proto_json
+        msg.end_time = end_time
+        msg.res_bool = res_bool
+        msg.res_str = res_str
+        self.quant_bad_behav_pub.publish(msg)
 
     def bodyPoseCallback(self, data):
-        """Callback for cmd_vel command"""
+        """Callback for body_pose command"""
         q = Quaternion()
         q.x = data.orientation.x
         q.y = data.orientation.y
@@ -418,6 +441,11 @@ class SpotROS():
         mobility_params = self.spot_wrapper.get_mobility_params()
         mobility_params.body_control.CopyFrom(body_control)
         self.spot_wrapper.set_mobility_params(mobility_params)
+
+        msg = QuantBadBehav()
+        msg.log = self.get_sys_ros_time_str()
+        msg.body_pose = data
+        self.quant_bad_behav_pub.publish(msg)
 
     def handle_list_graph(self, upload_path):
         """ROS service handler for listing graph_nav waypoint_ids"""
@@ -549,6 +577,7 @@ class SpotROS():
         self.battery_pub = rospy.Publisher('status/battery_states', BatteryStateArray, queue_size=10)
         self.behavior_faults_pub = rospy.Publisher('status/behavior_faults', BehaviorFaultState, queue_size=10)
         self.system_faults_pub = rospy.Publisher('status/system_faults', SystemFaultState, queue_size=10)
+        self.quant_bad_behav_pub = rospy.Publisher('quant_bad_behav', QuantBadBehav, queue_size=50)
 
         self.feedback_pub = rospy.Publisher('status/feedback', Feedback, queue_size=10)
 
@@ -596,6 +625,7 @@ class SpotROS():
         self.username = rospy.get_param('~username', 'default_value')
         self.password = rospy.get_param('~password', 'default_value')
         self.hostname = rospy.get_param('~hostname', 'default_value')
+        self.cmd_dt = rospy.get_param('~cmd_dt', 0.125)  # 125 ms, Time-to-live for a command
         self.motion_deadzone = rospy.get_param('~deadzone', 0.05)
 
         self.camera_static_transform_broadcaster = tf2_ros.StaticTransformBroadcaster()

@@ -557,7 +557,7 @@ class SpotWrapper():
         """
         return self._mobility_params
 
-    def velocity_cmd(self, v_x, v_y, v_rot, cmd_duration=0.125):
+    def velocity_cmd(self, v_x, v_y, v_rot, cmd_duration=0.125, ldos=False):
         """Send a velocity motion command to the robot.
 
         Args:
@@ -566,12 +566,20 @@ class SpotWrapper():
             v_rot: Angular velocity around the Z axis in radians
             cmd_duration: (optional) Time-to-live for the command in seconds.  Default is 125ms (assuming 10Hz command rate).
         """
-        end_time=time.time() + cmd_duration
-        response = self._robot_command(RobotCommandBuilder.synchro_velocity_command(
-                                      v_x=v_x, v_y=v_y, v_rot=v_rot, params=self._mobility_params),
-                                      end_time_secs=end_time, timesync_endpoint=self._robot.time_sync.endpoint)
-        self._last_velocity_command_time = end_time
-        return response[0], response[1]
+        if ldos:
+            end_time=time.time() + cmd_duration
+            command_proto = RobotCommandBuilder.synchro_velocity_command(v_x=v_x, v_y=v_y, v_rot=v_rot, params=self._mobility_params)
+            tendpt = self._robot.time_sync.endpoint
+            response = self._robot_command(command_proto, end_time_secs=end_time, timesync_endpoint=tendpt)
+            self._last_velocity_command_time = end_time
+            return (command_proto, end_time, tendpt), response
+        else:
+            end_time=time.time() + cmd_duration
+            response = self._robot_command(RobotCommandBuilder.synchro_velocity_command(
+                                        v_x=v_x, v_y=v_y, v_rot=v_rot, params=self._mobility_params),
+                                        end_time_secs=end_time, timesync_endpoint=self._robot.time_sync.endpoint)
+            self._last_velocity_command_time = end_time
+            return response[0], response[1]
 
     def trajectory_cmd(self, goal_x, goal_y, goal_heading, cmd_duration, frame_name='odom', precise_position=False):
         """Send a trajectory motion command to the robot.
