@@ -34,7 +34,7 @@ from spot_msgs.msg import Feedback
 from spot_msgs.msg import MobilityParams
 from spot_msgs.msg import NavigateToAction, NavigateToResult, NavigateToFeedback
 from spot_msgs.msg import TrajectoryAction, TrajectoryResult, TrajectoryFeedback
-from spot_msgs.msg import QuantBadBehav
+from spot_msgs.msg import QuantBadBehav, LDOSOdometry
 from spot_msgs.srv import ListGraph, ListGraphResponse
 from spot_msgs.srv import SetLocomotion, SetLocomotionResponse
 from spot_msgs.srv import ClearBehaviorFault, ClearBehaviorFaultResponse
@@ -89,7 +89,14 @@ class SpotROS():
                 odom_msg = GetOdomFromState(state, self.spot_wrapper, use_vision=True)
             else:
                 odom_msg = GetOdomFromState(state, self.spot_wrapper, use_vision=False)
+            ldos_odom_msg = LDOSOdometry()
+            ldos_odom_msg.sys_nano_time = int(time.time() * 1e9)
+            ldos_odom_msg.header = odom_msg.header
+            ldos_odom_msg.child_frame_id = odom_msg.child_frame_id
+            ldos_odom_msg.pose = odom_msg.pose
+            ldos_odom_msg.twist = odom_msg.twist
             self.odom_pub.publish(odom_msg)
+            self.ldos_odom_pub.publish(ldos_odom_msg)
 
             # Feet #
             foot_array_msg = GetFeetFromState(state, self.spot_wrapper)
@@ -574,6 +581,7 @@ class SpotROS():
         self.lease_pub = rospy.Publisher('status/leases', LeaseArray, queue_size=10)
         self.odom_twist_pub = rospy.Publisher('odometry/twist', TwistWithCovarianceStamped, queue_size=10)
         self.odom_pub = rospy.Publisher('odometry', Odometry, queue_size=10)
+        self.ldos_odom_pub = rospy.Publisher('ldos/odometry', LDOSOdometry, queue_size=10)
         self.feet_pub = rospy.Publisher('status/feet', FootStateArray, queue_size=10)
         self.estop_pub = rospy.Publisher('status/estop', EStopStateArray, queue_size=10)
         self.wifi_pub = rospy.Publisher('status/wifi', WiFiState, queue_size=10)

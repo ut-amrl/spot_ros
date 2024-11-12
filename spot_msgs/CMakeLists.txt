@@ -33,6 +33,7 @@ add_message_files(
   PowerState.msg
   SystemFaultState.msg
   QuantBadBehav.msg
+  LDOSOdometry.msg
 )
 
 add_service_files(
