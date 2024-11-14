@@ -99,7 +99,10 @@ class SpotROS():
             ldos_odom_msg.child_frame_id = odom_msg.child_frame_id
             ldos_odom_msg.pose = odom_msg.pose
             ldos_odom_msg.twist = odom_msg.twist
-            ldos_odom_msg.anyinfo = "{" + f"cmd_vel: {self.last_ldos_cmd_vel.sys_nano_time}" + "}"
+            if self.last_ldos_cmd_vel is not None:
+                ldos_odom_msg.anyinfo = "{" + f"cmd_vel: {self.last_ldos_cmd_vel.sys_nano_time}" + "}"
+            else:
+                ldos_odom_msg.anyinfo = "{" + f"cmd_vel: None" + "}"
             self.odom_pub.publish(odom_msg)
             self.ldos_odom_pub.publish(ldos_odom_msg)
 
