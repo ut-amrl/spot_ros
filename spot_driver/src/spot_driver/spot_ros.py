@@ -47,6 +47,10 @@ import actionlib
 import logging
 import threading
 
+import roslib
+roslib.load_manifest('amrl_msgs')
+from amrl_msgs.msg import LDOSTwist
+
 class SpotROS():
     """Parent class for using the wrapper.  Defines all callbacks and keeps the wrapper alive"""
 
@@ -95,6 +99,7 @@ class SpotROS():
             ldos_odom_msg.child_frame_id = odom_msg.child_frame_id
             ldos_odom_msg.pose = odom_msg.pose
             ldos_odom_msg.twist = odom_msg.twist
+            ldos_odom_msg.anyinfo = "{" + f"cmd_vel: {self.last_ldos_cmd_vel.sys_nano_time}" + "}"
             self.odom_pub.publish(odom_msg)
             self.ldos_odom_pub.publish(ldos_odom_msg)
 
@@ -596,6 +601,8 @@ class SpotROS():
         self.mobility_params_pub = rospy.Publisher('status/mobility_params', MobilityParams, queue_size=10)
 
         rospy.Subscriber('cmd_vel', Twist, self.cmdVelCallback, queue_size = 1)
+        rospy.Subscriber('/ldos/cmd_vel', LDOSTwist, self.LDOScmdVelCallback, queue_size = 1)
+        self.last_ldos_cmd_vel = None
         rospy.Subscriber('body_pose', Pose, self.bodyPoseCallback, queue_size = 1)
 
         rospy.Service("claim", Trigger, self.handle_claim)
