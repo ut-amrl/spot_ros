@@ -428,6 +428,9 @@ class SpotROS():
         ros_time = int(rospy.Time.now().to_nsec())
         return f"System Time(ns)={sys_time}, ROS Time(ns)={ros_time}"
 
+    def LDOScmdVelCallback(self, data):
+        self.last_ldos_cmd_vel = data
+
     def cmdVelCallback(self, data):
         """Callback for cmd_vel command"""
         inargs, outresp = self.spot_wrapper.velocity_cmd(data.linear.x, data.linear.y, data.angular.z, cmd_duration=self.cmd_dt, ldos=True)
