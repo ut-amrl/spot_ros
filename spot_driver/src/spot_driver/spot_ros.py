@@ -600,7 +600,7 @@ class SpotROS():
         self.battery_pub = rospy.Publisher('status/battery_states', BatteryStateArray, queue_size=10)
         self.behavior_faults_pub = rospy.Publisher('status/behavior_faults', BehaviorFaultState, queue_size=10)
         self.system_faults_pub = rospy.Publisher('status/system_faults', SystemFaultState, queue_size=10)
-        self.quant_bad_behav_pub = rospy.Publisher('quant_bad_behav', QuantBadBehav, queue_size=50)
+        self.quant_bad_behav_pub = rospy.Publisher('ldos/quant_bad_behav', QuantBadBehav, queue_size=50)
 
         self.feedback_pub = rospy.Publisher('status/feedback', Feedback, queue_size=10)
 
